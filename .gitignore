@@ -1,0 +1,52 @@
+# Local environments and generated files
+/venv/
+/.venv/
+/env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Models, FFmpeg binaries, uploads, transcripts and task history
+/runtime/
+/data/
+*.mp4
+*.mkv
+*.mov
+*.webm
+*.mp3
+*.m4a
+*.wav
+*.flac
+*.srt
+*.vtt
+*.bin
+*.onnx
+*.zip
+
+# Publish only the reusable scorer, not private evaluation materials
+/evaluation/*
+!/evaluation/score.py
+/验收结果.md
+/转写质量验收.md
+
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+cookies*.txt
+*cookies*.json
+*.pem
+*.key
+.netrc
+.python-version

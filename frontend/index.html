@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>转文字工坊 · 我的 VideoScript</title>
+<style>
+  :root { --bg:#14161c; --card:#1e212b; --line:#2c3040; --text:#e8eaf0;
+          --muted:#9aa0b4; --accent:#5b8cff; --ok:#3ecf8e; --err:#ff6b6b; --warn:#ffb020; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  header { text-align:center; padding:36px 16px 8px; }
+  header h1 { margin:0; font-size:28px; }
+  header p { color:var(--muted); margin:8px 0 0; }
+  main { max-width:760px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+          padding:20px; margin-bottom:16px; }
+  .card h2 { margin:0 0 14px; font-size:17px; }
+  .tabs { display:flex; gap:8px; margin-bottom:12px; }
+  .tabs button { flex:1; padding:10px; border-radius:10px; border:1px solid var(--line);
+                 background:transparent; color:var(--muted); cursor:pointer; font-size:14px; }
+  .tabs button.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  input[type=text], input[type=url], textarea { width:100%; padding:12px; border-radius:10px;
+      border:1px solid var(--line); background:#14161c; color:var(--text); font-size:14px; }
+  input[type=file] { width:100%; padding:10px 0; color:var(--muted); font-size:14px; }
+  .row { display:flex; gap:10px; margin-top:12px; align-items:center; }
+  .options { flex-wrap:wrap; align-items:flex-end; }
+  .options label { display:grid; gap:6px; flex:1; min-width:180px; }
+  .hint { color:var(--muted); font-size:12px; line-height:1.6; margin:10px 0 0; }
+  textarea { display:block; margin-top:6px; resize:vertical; min-height:64px; font-family:inherit; }
+  details { margin-top:14px; }
+  summary { color:var(--muted); cursor:pointer; font-size:14px; }
+  .connection-error { color:var(--warn); font-size:13px; margin-bottom:10px; }
+  .review-note { color:var(--warn); font-size:12px; line-height:1.6; margin-top:8px; }
+  select { padding:10px; border-radius:10px; border:1px solid var(--line);
+           background:#14161c; color:var(--text); }
+  label { color:var(--muted); font-size:14px; }
+  #submit { flex:1; padding:12px; border-radius:10px; border:none; cursor:pointer;
+            background:var(--accent); color:#fff; font-size:15px; font-weight:600; }
+  #submit:disabled { opacity:.5; cursor:wait; }
+  .job { border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:10px; }
+  .job .title { font-weight:600; word-break:break-all; margin-bottom:8px; }
+  .job .meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+               color:var(--muted); font-size:13px; margin-bottom:8px; }
+  .pill { padding:3px 10px; border-radius:20px; font-size:12px; }
+  .pill.queued { background:#2c3040; color:var(--muted); }
+  .pill.working { background:#3a2f14; color:var(--warn); }
+  .pill.done { background:#123b2a; color:var(--ok); }
+  .pill.error { background:#3d1a1a; color:var(--err); }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .btn { padding:8px 14px; border-radius:8px; border:1px solid var(--line);
+         background:transparent; color:var(--text); cursor:pointer; font-size:13px; }
+  .btn:hover { border-color:var(--accent); }
+  .btn.danger:hover { border-color:var(--err); color:var(--err); }
+  .transcript { margin-top:10px; max-height:320px; overflow:auto; background:#14161c;
+                border:1px solid var(--line); border-radius:10px; padding:12px; font-size:14px; }
+  .transcript .seg { margin-bottom:8px; line-height:1.6; }
+  .transcript .seg.needs-review { border-left:3px solid var(--warn); padding-left:8px; }
+  .review-badge { color:var(--warn); font-size:12px; margin-right:8px; }
+  .review-reason { color:var(--muted); font-size:12px; }
+  .transcript-tools { position:sticky; top:-12px; background:#14161c; padding:8px 0 12px;
+                      margin-bottom:10px; border-bottom:1px solid var(--line); }
+  .transcript-tools label { display:flex; align-items:center; gap:6px; margin-top:6px; cursor:pointer; }
+  .transcript .t { color:var(--accent); font-size:12px; margin-right:8px; }
+  .empty { text-align:center; color:var(--muted); padding:30px 0; }
+  footer { text-align:center; color:var(--muted); font-size:12px; padding:20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎙️ 转文字工坊</h1>
+  <p>粘贴视频 / 播客链接，或上传音频，自动转成带时间轴的文稿</p>
+</header>
+<main>
+  <section class="card">
+    <h2>新建转写任务</h2>
+    <div class="tabs">
+      <button id="tab-url" class="active">粘贴链接</button>
+      <button id="tab-file">上传文件</button>
+    </div>
+    <div id="pane-url"><input id="url" type="url" placeholder="https://…（YouTube / B站 / 播客等公开链接）"></div>
+    <div id="pane-file" hidden><input id="file" type="file" accept="audio/*,video/*,.mp3,.mp4,.wav,.m4a"></div>
+    <div class="row options">
+      <label>识别方式
+        <select id="method">
+          <option value="auto" selected>字幕优先（推荐）</option>
+          <option value="speech">仅语音识别</option>
+        </select>
+      </label>
+      <label>识别语言
+        <select id="lang">
+          <option value="zh" selected>中文</option>
+          <option value="auto">自动识别</option>
+          <option value="en">英语</option>
+        </select>
+      </label>
+    </div>
+    <p class="hint">优先读取视频画面中的字幕；没有可用字幕时使用语音识别。完成后会显示文稿来源及需复核的提示。</p>
+    <details>
+      <summary>语音模型和术语提示</summary>
+      <div class="row options">
+      <label>语音模型
+        <select id="model">
+          <option value="large-v3-turbo" selected>large-v3-turbo（默认）</option>
+          <option value="large-v3">large-v3（完整大模型，较慢）</option>
+          <option value="medium">medium</option>
+          <option value="small">small（轻量）</option>
+          <option value="base">base</option>
+          <option value="tiny">tiny（最快）</option>
+        </select>
+      </label>
+      </div>
+      <div style="margin-top:12px"><label for="initial-prompt">术语提示（可选）</label>
+        <textarea id="initial-prompt" maxlength="2000" placeholder="填写可能出现的人名、公司名或行业术语，用逗号分隔。"></textarea>
+      </div>
+      <p class="hint">术语仅为语音识别提供上下文，不会强制替换原话。首次使用模型需要下载。</p>
+    </details>
+    <div class="row">
+      <button id="submit">开始转写</button>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="font-size:17px;">任务列表</h2>
+    <div id="connection-error" class="connection-error" role="status" hidden></div>
+    <div id="jobs"><div class="empty">还没有任务，来试一条吧 👆</div></div>
+  </section>
+</main>
+<footer>只转写公开内容 · 文稿保存在本地 data/jobs/</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+let mode = 'url';
+$('#tab-url').onclick = () => { mode='url'; $('#tab-url').classList.add('active'); $('#tab-file').classList.remove('active'); $('#pane-url').hidden=false; $('#pane-file').hidden=true; };
+$('#tab-file').onclick = () => { mode='file'; $('#tab-file').classList.add('active'); $('#tab-url').classList.remove('active'); $('#pane-file').hidden=false; $('#pane-url').hidden=true; };
+
+async function api(path, opts){
+  const r = await fetch(path, {cache:'no-store', ...opts});
+  if(!r.ok) throw await responseError(r);
+  return r.json();
+}
+async function responseError(response){
+  const text = await response.text();
+  try {
+    const detail = JSON.parse(text).detail;
+    if(typeof detail==='string') return new Error(detail);
+  } catch {}
+  return new Error(text || `请求失败（${response.status}）`);
+}
+function fmtTime(sec){
+  const m = Math.floor(sec/60), s = Math.floor(sec%60);
+  return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+$('#submit').onclick = async () => {
+  const btn = $('#submit'); btn.disabled = true;
+  try{
+    const fd = new FormData();
+    fd.append('model', $('#model').value);
+    fd.append('lang', $('#lang').value);
+    fd.append('method', $('#method').value);
+    fd.append('initial_prompt', $('#initial-prompt').value.trim());
+    if(mode==='url'){
+      const u = $('#url').value.trim();
+      if(!u){ alert('请先粘贴链接'); return; }
+      fd.append('url', u);
+    }else{
+      const f = $('#file').files[0];
+      if(!f){ alert('请先选择文件'); return; }
+      fd.append('file', f);
+    }
+    await api('/api/jobs', {method:'POST', body:fd});
+    $('#url').value=''; $('#file').value='';
+    await refresh();
+  }catch(e){ alert('提交失败：'+e.message); }
+  finally{ btn.disabled = false; }
+};
+
+async function delJob(id){
+  if(!confirm('删除这个任务及其文稿？')) return;
+  try {
+    await api('/api/jobs/'+id, {method:'DELETE'});
+    await refresh();
+  } catch(e) { alert('删除失败：'+e.message); }
+}
+async function toggleTranscript(id){
+  const box = $('#tr-'+id);
+  if(box.dataset.loading) return;
+  if(!box.hidden){ box.hidden = true; return; }
+  box.hidden = false;
+  if(box.dataset.loaded) return;
+  box.dataset.loading = '1';
+  box.textContent = '正在加载完整文稿…';
+  try {
+      const job = await api('/api/jobs/'+id);
+      const segments = job.segments||[];
+      const reviewIndices = new Set((job.quality_report?.review_segments||[]).map(Number));
+      segments.forEach((segment, index)=>{
+        if(segment.review_reasons?.length) reviewIndices.add(index+1);
+      });
+      const reviewCount = segments.filter((_,index)=>reviewIndices.has(index+1)).length;
+      box.innerHTML = segments.length ? `
+        <div class="transcript-tools">
+          <span class="hint">完整文稿 · ${segments.length} 段</span>
+          <label><input type="checkbox" onchange="filterTranscript('${id}',this.checked)" ${reviewCount?'':'disabled'}>
+            只看待复核（${reviewCount} 段）</label>
+          <div class="hint">标记用于帮助回看原片，未标记的段落也不代表已经人工校对。</div>
+        </div>` + segments.map((s,index)=>{
+          const review = reviewIndices.has(index+1);
+          const reasons = Array.isArray(s.review_reasons) ? s.review_reasons : [];
+          return `<div class="seg ${review?'needs-review':''}" data-review="${review?'1':'0'}">
+            <span class="t">[${fmtTime(s.start)}]</span>${review?'<span class="review-badge">待复核</span>':''}${esc(s.text)}
+            ${review&&reasons.length?`<div class="review-reason">${esc(reasons.join('；'))}</div>`:''}
+          </div>`;
+        }).join('') : '<div class="empty">暂无预览</div>';
+      box.dataset.loaded = '1';
+  } catch(e) {
+      box.textContent = '加载失败：'+e.message+'。收起后可重试。';
+  } finally {
+      delete box.dataset.loading;
+  }
+}
+function filterTranscript(id, onlyReview){
+  $('#tr-'+id).querySelectorAll('.seg').forEach(segment=>{
+    segment.hidden = onlyReview && segment.dataset.review!=='1';
+  });
+}
+async function copyText(id){
+  try {
+    const r = await fetch('/api/jobs/'+id+'/download?format=txt', {cache:'no-store'});
+    if(!r.ok) throw await responseError(r);
+    const t = await r.text();
+    if(!navigator.clipboard) throw new Error('当前页面无法访问剪贴板，请下载 TXT 文件');
+    await navigator.clipboard.writeText(t);
+    alert('已复制纯文本到剪贴板');
+  } catch(e) { alert('复制失败：'+e.message); }
+}
+
+function render(jobs){
+  const box = $('#jobs');
+  if(!jobs.length){ box.innerHTML = '<div class="empty">还没有任务，来试一条吧 👆</div>'; return; }
+  const previous = new Map([...box.querySelectorAll('.job')].map(node=>[node.dataset.job, node]));
+  const nodes = jobs.map(j => {
+    const fingerprint = JSON.stringify(j);
+    const existing = previous.get(j.id);
+    if(existing && existing.dataset.fingerprint===fingerprint) return existing;
+    const container = document.createElement('div');
+    const status = ['queued','working','done','error'].includes(j.status) ? j.status : 'error';
+    const notes = Array.isArray(j.quality_notes) ? j.quality_notes : [j.quality_notes].filter(Boolean);
+    container.innerHTML = `
+    <div class="job" data-job="${esc(j.id)}">
+      <div class="title">${esc(j.title)||'(无标题)'}</div>
+      <div class="meta">
+        <span class="pill ${status}">${{queued:'排队中',working:'处理中',done:'完成',error:'失败'}[status]}</span>
+        <span>${esc(j.message||'')}</span>
+        ${j.total_segments?`<span>${j.total_segments} 段</span>`:''}
+        ${j.language?`<span>语言 ${esc(j.language)}</span>`:''}
+        ${j.engine?`<span>来源：${esc(j.engine)}</span>`:''}
+        ${j.model?`<span>语音模型 ${esc(j.model)}</span>`:''}
+      </div>
+      ${j.review_count ? `<div class="review-note">${esc(String(j.review_count))} 段需复核</div>` : ''}
+      ${notes.map(note=>`<div class="hint">${esc(String(note))}</div>`).join('')}
+      <div class="actions">
+        ${j.status==='done' ? `
+          <button class="btn" onclick="toggleTranscript('${j.id}')">查看文稿</button>
+          <button class="btn" onclick="copyText('${j.id}')">复制文本</button>
+          ${(j.formats||[]).filter(f=>['txt','md','srt','vtt'].includes(f)).map(f=>`<button class="btn" onclick="location.href='/api/jobs/${j.id}/download?format=${f}'">${f.toUpperCase()}</button>`).join('')}
+        `:''}
+        ${['queued','working'].includes(j.status) ? '' : `<button class="btn danger" onclick="delJob('${j.id}')">删除</button>`}
+      </div>
+      <div class="transcript" id="tr-${j.id}" hidden></div>
+    </div>`;
+    const node = container.firstElementChild;
+    node.dataset.fingerprint = fingerprint;
+    return node;
+  });
+  box.replaceChildren(...nodes);
+}
+
+let refreshing = false;
+async function refresh(){
+  if(refreshing) return;
+  refreshing = true;
+  try {
+    render(await api('/api/jobs'));
+    $('#connection-error').hidden = true;
+  } catch(e) {
+    $('#connection-error').textContent = '暂时无法连接服务，将自动重试。'+e.message;
+    $('#connection-error').hidden = false;
+  } finally { refreshing = false; }
+}
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>
